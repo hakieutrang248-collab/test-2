@@ -22,6 +22,7 @@ const STEPS: { key: AppStep; label: string; icon: string; color: string }[] = [
 export default function App() {
   const [currentStep, setCurrentStep] = useState<AppStep>('INPUT');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [input, setInput] = useState<ExamInput>({
@@ -44,7 +45,7 @@ export default function App() {
   const [exam, setExam] = useState<ExamData | null>(null);
   const [answers, setAnswers] = useState<AnswerKeyData | null>(null);
 
-  const getStorageKey = () => `exam_7991_workspace_${input.subject}_${input.grade}_${input.semester}`.replace(/\s+/g, '_');
+  const getStorageKey = () => `exam_7991_v3_${input.subject}_${input.grade}_${input.semester}`.replace(/\s+/g, '_');
 
   useEffect(() => {
     const saved = localStorage.getItem(getStorageKey());
@@ -68,6 +69,7 @@ export default function App() {
 
   const handleGenerate = async (step: AppStep) => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       if (step === 'MATRIX') {
         const res = await generateMatrix(input);
@@ -84,7 +86,7 @@ export default function App() {
       }
       setCurrentStep(step);
     } catch (error: any) {
-      alert("Lỗi: " + error.message);
+      setErrorMessage(error.message);
     } finally {
       setLoading(false);
     }
@@ -152,7 +154,7 @@ export default function App() {
               <tr key={idx}>
                 <td className="border border-black p-1">{idx + 1}</td>
                 <td className="border border-black p-1 text-left">
-                   {editable ? <input className="w-full bg-transparent border-none p-0 text-left" value={row.topic} onChange={e => {
+                   {editable ? <input className="w-full bg-transparent border-none p-0 text-left font-medium" value={row.topic} onChange={e => {
                      const newRows = [...data.rows]; newRows[idx] = { ...newRows[idx], topic: e.target.value }; setMatrix({ ...data, rows: newRows });
                    }} /> : row.topic}
                 </td>
@@ -161,20 +163,13 @@ export default function App() {
                      const newRows = [...data.rows]; newRows[idx] = { ...newRows[idx], content: e.target.value }; setMatrix({ ...data, rows: newRows });
                    }} /> : row.content}
                 </td>
-                {/* 12 columns for assessment levels */}
-                {[
-                  'mcq_nb', 'mcq_th', 'mcq_vd', 
-                  'tf_nb', 'tf_th', 'tf_vd', 
-                  'short_nb', 'short_th', 'short_vd', 
-                  'essay_nb', 'essay_th', 'essay_vd'
-                ].map(f => (
+                {[ 'mcq_nb', 'mcq_th', 'mcq_vd', 'tf_nb', 'tf_th', 'tf_vd', 'short_nb', 'short_th', 'short_vd', 'essay_nb', 'essay_th', 'essay_vd' ].map(f => (
                   <td key={f} className="border border-black p-1">
                     {editable ? <input type="number" className="w-6 bg-transparent border-none p-0 text-center" value={row[f as keyof MatrixRow] || 0} onChange={e => {
                       const newRows = [...data.rows]; newRows[idx] = { ...newRows[idx], [f]: parseInt(e.target.value) || 0 }; setMatrix({ ...data, rows: newRows });
                     }} /> : (row[f as keyof MatrixRow] || '')}
                   </td>
                 ))}
-                {/* Totals */}
                 <td className="border border-black p-1 font-bold">{(row.mcq_nb||0)+(row.tf_nb||0)+(row.short_nb||0)+(row.essay_nb||0) || ''}</td>
                 <td className="border border-black p-1 font-bold">{(row.mcq_th||0)+(row.tf_th||0)+(row.short_th||0)+(row.essay_th||0) || ''}</td>
                 <td className="border border-black p-1 font-bold">{(row.mcq_vd||0)+(row.tf_vd||0)+(row.short_vd||0)+(row.essay_vd||0) || ''}</td>
@@ -194,14 +189,14 @@ export default function App() {
             </tr>
             <tr className="font-bold">
               <td colSpan={3} className="border border-black p-1">Tổng số điểm</td>
-              <td colSpan={3} className="border border-black p-1 text-[9px]">3,0<sup>5</sup></td>
-              <td colSpan={3} className="border border-black p-1 text-[9px]">2,0</td>
-              <td colSpan={3} className="border border-black p-1 text-[9px]">2,0</td>
-              <td colSpan={3} className="border border-black p-1 text-[9px]">3,0</td>
-              <td className="border border-black p-1 text-[9px]">4,0</td>
-              <td className="border border-black p-1 text-[9px]">3,0</td>
-              <td className="border border-black p-1 text-[9px]">3,0</td>
-              <td className="border border-black p-1 text-[9px]">10,0</td>
+              <td colSpan={3} className="border border-black p-1">3,0<sup>5</sup></td>
+              <td colSpan={3} className="border border-black p-1">2,0</td>
+              <td colSpan={3} className="border border-black p-1">2,0</td>
+              <td colSpan={3} className="border border-black p-1">3,0</td>
+              <td className="border border-black p-1">4,0</td>
+              <td className="border border-black p-1">3,0</td>
+              <td className="border border-black p-1">3,0</td>
+              <td className="border border-black p-1">10,0</td>
             </tr>
             <tr className="font-bold bg-slate-50">
               <td colSpan={3} className="border border-black p-1">Tỉ lệ %</td>
@@ -238,6 +233,17 @@ export default function App() {
       </header>
 
       <main className="flex-grow max-w-7xl mx-auto w-full p-4 md:p-8">
+        {errorMessage && (
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-sm flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-300 no-print">
+            <i className="fas fa-exclamation-triangle text-red-500 mt-1"></i>
+            <div>
+              <p className="text-sm text-red-700 font-bold">Lỗi hệ thống</p>
+              <p className="text-xs text-red-600">{errorMessage}</p>
+              <button onClick={() => handleGenerate(currentStep)} className="mt-2 text-[10px] bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 font-bold uppercase">Thử lại ngay</button>
+            </div>
+          </div>
+        )}
+
         {currentStep === 'INPUT' ? (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
@@ -252,18 +258,13 @@ export default function App() {
               <div className="mb-10">
                 <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-4 flex items-center gap-2"><i className="fas fa-list-ol"></i> Định dạng đề (Số lượng câu hỏi)</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: 'MCQ (Nhiều LC)', key: 'mcqCount', color: 'indigo' },
-                    { label: 'Đúng - Sai', key: 'tfCount', color: 'emerald' },
-                    { label: 'Trả lời ngắn', key: 'shortCount', color: 'amber' },
-                    { label: 'Tự luận', key: 'essayCount', color: 'rose' }
-                  ].map(c => (
+                  {[ { label: 'MCQ (Nhiều LC)', key: 'mcqCount' }, { label: 'Đúng - Sai', key: 'tfCount' }, { label: 'Trả lời ngắn', key: 'shortCount' }, { label: 'Tự luận', key: 'essayCount' } ].map(c => (
                     <div key={c.key} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-center">
                       <p className="text-[10px] font-bold text-slate-600 mb-2 uppercase">{c.label}</p>
                       <div className="flex items-center justify-between">
-                        <button onClick={() => updateCount(c.key as any, -1)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 transition-colors"><i className="fas fa-minus text-[10px]"></i></button>
+                        <button onClick={() => updateCount(c.key as any, -1)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100"><i className="fas fa-minus text-[10px]"></i></button>
                         <span className="text-xl font-bold text-slate-900">{input[c.key as keyof ExamInput]}</span>
-                        <button onClick={() => updateCount(c.key as any, 1)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 transition-colors"><i className="fas fa-plus text-[10px]"></i></button>
+                        <button onClick={() => updateCount(c.key as any, 1)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100"><i className="fas fa-plus text-[10px]"></i></button>
                       </div>
                     </div>
                   ))}
@@ -279,7 +280,7 @@ export default function App() {
                     setInput(prev => ({ ...prev, referenceMaterial: res.value }));
                   } catch (e) { alert("Lỗi đọc tệp"); }
                 }} /></div>
-                <textarea rows={6} className="w-full border-amber-200 rounded-xl p-3 border text-sm bg-white" value={input.referenceMaterial} onChange={e => setInput({...input, referenceMaterial: e.target.value})} placeholder="Dán nội dung đề cương vào đây để AI phân tích..." />
+                <textarea rows={6} className="w-full border-amber-200 rounded-xl p-3 border text-sm bg-white focus:ring-2 ring-amber-500/20" value={input.referenceMaterial} onChange={e => setInput({...input, referenceMaterial: e.target.value})} placeholder="Dán nội dung đề cương hoặc ma trận cũ vào đây..." />
               </div>
 
               <button onClick={() => handleGenerate('MATRIX')} disabled={loading} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all">
@@ -289,12 +290,11 @@ export default function App() {
           </div>
         ) : (
           <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Navigation Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 no-print">
               {STEPS.filter(s => s.key !== 'INPUT').map(s => {
                 const isGenerated = (s.key === 'MATRIX' && !!matrix) || (s.key === 'SPEC' && !!spec) || (s.key === 'EXAM' && !!exam) || (s.key === 'ANSWERS' && !!answers);
                 return (
-                  <button key={s.key} onClick={() => isGenerated ? setCurrentStep(s.key) : handleGenerate(s.key)} className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 text-center ${currentStep === s.key ? `border-${s.color}-500 bg-${s.color}-50 shadow-md` : isGenerated ? `border-emerald-200 bg-emerald-50/20` : `border-slate-100 bg-white opacity-60`}`}>
+                  <button key={s.key} onClick={() => isGenerated ? setCurrentStep(s.key) : handleGenerate(s.key)} disabled={loading} className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 text-center ${currentStep === s.key ? `border-${s.color}-500 bg-${s.color}-50 shadow-md` : isGenerated ? `border-emerald-200 bg-emerald-50/20` : `border-slate-100 bg-white opacity-60`}`}>
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${isGenerated ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}><i className={`fas ${loading && currentStep === s.key ? 'fa-circle-notch fa-spin' : s.icon}`}></i></div>
                     <span className="text-xs font-bold uppercase text-slate-800">{s.label}</span>
                   </button>
@@ -303,11 +303,21 @@ export default function App() {
             </div>
             
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 min-h-[600px] relative">
+              {loading && (
+                <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px] z-50 flex flex-col items-center justify-center gap-4 text-center">
+                   <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                   <div className="space-y-2">
+                     <p className="font-bold text-indigo-900 uppercase tracking-widest text-xs animate-pulse">Đang thiết kế tài liệu...</p>
+                     <p className="text-[10px] text-slate-500 italic max-w-xs px-4">Đang xử lý thông tin chuyên môn, vui lòng đợi trong giây lát.</p>
+                   </div>
+                </div>
+              )}
+
               <div className="flex justify-between items-center mb-8 no-print">
                 <h2 className="text-xl font-bold uppercase text-slate-800 border-l-4 border-indigo-600 pl-3">{STEPS.find(s => s.key === currentStep)?.label}</h2>
                 <div className="flex gap-2">
-                   <button onClick={() => handleGenerate(currentStep)} className="text-xs font-bold text-slate-600 px-4 py-2 rounded-lg border border-slate-200"><i className="fas fa-sync-alt mr-2"></i>Tạo lại</button>
-                   <button onClick={downloadWord} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2"><i className="fas fa-file-word"></i>Tải Word</button>
+                   <button onClick={() => handleGenerate(currentStep)} disabled={loading} className="text-xs font-bold text-slate-600 px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50"><i className="fas fa-sync-alt mr-2"></i>Tạo lại</button>
+                   <button onClick={downloadWord} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm hover:bg-indigo-700"><i className="fas fa-file-word"></i>Tải Word</button>
                 </div>
               </div>
 
@@ -324,7 +334,7 @@ export default function App() {
                              <tr key={idx}>
                                 <td className="border border-black p-2 text-center">{idx+1}</td>
                                 <td className="border border-black p-2 font-bold">{it.topic}</td>
-                                <td className="border border-black p-2 italic text-justify"><textarea className="w-full bg-transparent border-none p-0" rows={3} value={it.outcome} onChange={e => {
+                                <td className="border border-black p-2 italic text-justify"><textarea className="w-full bg-transparent border-none p-0 outline-none" rows={3} value={it.outcome} onChange={e => {
                                   const newItems = [...spec.items]; newItems[idx] = { ...newItems[idx], outcome: e.target.value }; setSpec({ ...spec, items: newItems });
                                 }} /></td>
                                 <td className="border border-black p-2 text-center">B: {it.mcq_nb+it.tf_nb+it.short_nb}<br/>H: {it.mcq_th+it.tf_th+it.short_th}<br/>V: {it.mcq_vd+it.tf_vd+it.short_vd}</td>
@@ -346,7 +356,7 @@ export default function App() {
                         <p><span className="font-bold">Câu {i+1}.</span> <span contentEditable className="outline-none" onBlur={e => {
                           const newQs = exam.questions.map(item => item.id === q.id ? { ...item, text: e.currentTarget.textContent || '' } : item); setExam({ ...exam, questions: newQs });
                         }}>{q.text}</span></p>
-                        {q.options && <div className="grid grid-cols-2 gap-4 ml-6 mt-1">
+                        {q.options && <div className="grid grid-cols-2 gap-2 ml-6 mt-1">
                           {q.options.map((o, idx) => <div key={idx}>{String.fromCharCode(65+idx)}. {o}</div>)}
                         </div>}
                       </div>
@@ -378,8 +388,8 @@ export default function App() {
                <div className="text-center italic text-[9pt] mb-8">(Kèm theo Công văn số 7991/BGDĐT-GDTrH ngày 17/12/2024 của Bộ GDĐT)</div>
                
                {matrix && <div className="page-break mb-12"><h2 className="text-center font-bold uppercase text-[11pt] mb-6">1. MA TRẬN ĐỀ KIỂM TRA ĐỊNH KỲ</h2><MatrixTable data={matrix} isPrint={true} editable={false} /></div>}
-               {spec && <div className="page-break mb-12"><h2 className="text-center font-bold uppercase text-[11pt] mb-6">2. BẢN ĐẶC TẢ ĐỀ KIỂM TRA ĐỊNH KỲ</h2>{/* Spec Table */}</div>}
-               {exam && <div className="page-break mb-12"><h2 className="text-center font-bold uppercase text-[11pt] mb-6">3. ĐỀ THI MINH HỌA</h2>{/* Exam Content */}</div>}
+               {spec && <div className="page-break mb-12"><h2 className="text-center font-bold uppercase text-[11pt] mb-6">2. BẢN ĐẶC TẢ ĐỀ KIỂM TRA ĐỊNH KỲ</h2>{/* Content */}</div>}
+               {exam && <div className="page-break mb-12"><h2 className="text-center font-bold uppercase text-[11pt] mb-6">3. ĐỀ THI MINH HỌA</h2>{/* Content */}</div>}
             </div>
           </div>
         )}
